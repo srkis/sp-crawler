@@ -1,2 +1,2 @@
 # sp-crawler
-WP Plugin. Seo Performance Crawler. 
+SEO Performance Crawler is a powerful WordPress tool that automatically analyzes key SEO factors on your website. This plugin provides detailed reports on header structure validation (H1, H2, H3, etc.), image and meta tag analysis, identifies broken links and long URLs, and measures page load speed. With clear optimization recommendations, SEO Performance Crawler helps you enhance SEO rankings and improve user experience on your WordPress site.
