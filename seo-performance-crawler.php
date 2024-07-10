@@ -31,7 +31,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 define( 'SP_CRAWLER_VERSION', '1.0.0' );
-define('SP_CRAWLER_DIR',  WP_PLUGIN_URL . '/seo-performance-crawler');
+define('SP_CRAWLER_DIR', plugin_dir_url(__FILE__));
 define('SP_CRAWLER_IMG_DATA', plugin_dir_path(__FILE__) . 'data/results.json');
 
 function activate_sp_crawler() {
