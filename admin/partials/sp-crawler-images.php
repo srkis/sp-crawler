@@ -1,7 +1,6 @@
 <?php
 
-
-require_once WP_PLUGIN_DIR . '/seo-performance-crawler/includes/class-sp-crawler-helper.php';
+require_once trailingslashit(dirname(dirname(plugin_dir_path(__FILE__)))) . 'includes/class-sp-crawler-helper.php';
 
 /**
  * Provide a admin area view for the plugin
