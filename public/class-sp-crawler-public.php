@@ -104,108 +104,115 @@ class SP_Crawler_Public
 
 
 
+ public function sp_crawler_fetch_images() {
+    global $wp_filesystem;
 
-	public function sp_crawler_fetch_images()
-	{
-		$url = $_GET['siteUrl'];
-		$extensions = $_GET['imgExtensions'];
+    if (!function_exists('WP_Filesystem')) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+    }
 
-		$extensions = (is_array($extensions) && count($extensions) > 0) ? array_map('trim', $extensions) : ['png', 'jpg', 'jpeg', 'gif'];
+    WP_Filesystem();
 
-		// Pretvorite sve ekstenzije u mala slova i filtrirajte nevažeće ekstenzije
-		$extensions = array_map('strtolower', $extensions);
-		$extensions = array_filter($extensions, function ($ext) {
-			return preg_match('/^[a-z0-9]+$/', $ext);
-		});
+    $url = $_GET['siteUrl'];
+    $extensions = $_GET['imgExtensions'];
 
-		// Izbacite duplikate ako je potrebno
-		$extensions = array_unique($extensions);
+    $extensions = (is_array($extensions) && count($extensions) > 0) ? array_map('trim', $extensions) : ['png', 'jpg', 'jpeg', 'gif'];
 
-		$maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 5;
-		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-		$jsonFile = $dataDir . 'images_results.json';
+    $extensions = array_map('strtolower', $extensions);
+    $extensions = array_filter($extensions, function ($ext) {
+        return preg_match('/^[a-z0-9]+$/', $ext);
+    });
 
-		// Proverite da li postoji direktorijum, ako ne kreirajte ga
-		if (!is_dir($dataDir)) {
-			mkdir($dataDir, 0755, true);
-		}
+    $extensions = array_unique($extensions);
 
-		// Proverite da li postoji fajl, ako ne kreirajte ga
-		if (!file_exists($jsonFile)) {
-			touch($jsonFile);
-		}
+    $maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 5;
+    $dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
+    $jsonFile = $dataDir . 'images_results.json';
 
-		$visited = [];
-		$toVisit = [SP_Crawler_Helper::normalizeUrl($url)];
+    // Proverite da li postoji direktorijum, ako ne kreirajte ga
+    if (!$wp_filesystem->is_dir($dataDir)) {
+        if (!$wp_filesystem->mkdir($dataDir, 0755)) {
+            wp_send_json_error("Error: Unable to create data directory.");
+        }
+    }
 
-		// Otvaranje JSON datoteke za pisanje
-		$fileHandle = fopen($jsonFile, 'w');
-		if ($fileHandle === false) {
+    // Proverite da li postoji fajl, ako ne kreirajte ga
+    if (!$wp_filesystem->exists($jsonFile)) {
+        if (!$wp_filesystem->put_contents($jsonFile, '')) {
+            wp_send_json_error("Error: Unable to create JSON file.");
+        }
+    }
 
-			wp_send_json_error("Error opening JSON file for writing: $jsonFile");
-		}
+    $visited = [];
+    $toVisit = [SP_Crawler_Helper::normalizeUrl($url)];
 
-		// Početak JSON-a
-		fwrite($fileHandle, '{ "pages": [' . PHP_EOL);
+    $fileHandle = $wp_filesystem->get_contents($jsonFile);
+    if ($fileHandle === false) {
+        wp_send_json_error("Error opening JSON file for writing: $jsonFile");
+    }
 
-		$firstPage = true;
+    // Početak JSON-a
+    $jsonContent = '{ "pages": [' . PHP_EOL;
 
-		while ($toVisit && count($visited) < $maxPages) {
-			$batch = array_splice($toVisit, 0, 10); // Process 10 URLs at a time
+    $firstPage = true;
 
-			foreach ($batch as $currentUrl) {
-				if (in_array($currentUrl, $visited) || count($visited) >= $maxPages) {
-					continue;
-				}
+    while ($toVisit && count($visited) < $maxPages) {
+        $batch = array_splice($toVisit, 0, 10); // Process 10 URLs at a time
 
-				$visited[] = $currentUrl;
-				$images = SP_Crawler_Helper::getImagesFromPage($currentUrl, $extensions);
+        foreach ($batch as $currentUrl) {
+            if (in_array($currentUrl, $visited) || count($visited) >= $maxPages) {
+                continue;
+            }
 
-				// Formatiranje podataka u JSON format
-				$pageData = [
-					'page_title' => SP_Crawler_Helper::getPageTitle($currentUrl), // Funkcija za dobivanje naslova stranice
-					'page_url' => $currentUrl,
-					'image_urls' => $images
-				];
+            $visited[] = $currentUrl;
+            $images = SP_Crawler_Helper::getImagesFromPage($currentUrl, $extensions);
 
-				// Dodavanje zarezova između objekata, osim za prvi objekt
-				if (!$firstPage) {
-					fwrite($fileHandle, ',' . PHP_EOL);
-				} else {
-					$firstPage = false;
-				}
+            // Formatiranje podataka u JSON format
+            $pageData = [
+                'page_title' => SP_Crawler_Helper::getPageTitle($currentUrl), // Get Page title Function
+                'page_url' => $currentUrl,
+                'image_urls' => $images
+            ];
 
-				// Upisivanje podataka u JSON datoteku
-				fwrite($fileHandle, json_encode($pageData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
-			}
+            // adding commas between objects, except for first one
+            if (!$firstPage) {
+                $jsonContent .= ',' . PHP_EOL;
+            } else {
+                $firstPage = false;
+            }
 
-			foreach ($batch as $currentUrl) {
-				// Prikupljanje svih linkova sa stranice koje treba posjetiti
-				$links = SP_Crawler_Helper::getAllLinks($currentUrl);
-				foreach ($links as $link) {
-					$normalizedLink = SP_Crawler_Helper::normalizeUrl($link);
-					if (!in_array($normalizedLink, $visited) && !in_array($normalizedLink, $toVisit)) {
-						$toVisit[] = $normalizedLink;
-					}
-				}
-			}
-		}
+            // Upisivanje podataka u JSON datoteku
+            $jsonContent .= wp_json_encode($pageData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        }
 
-		// Završetak JSON formata
-		fwrite($fileHandle, PHP_EOL . ']' . PHP_EOL . '}' . PHP_EOL);
+        foreach ($batch as $currentUrl) {
+            // Prikupljanje svih linkova sa stranice koje treba posetiti
+            $links = SP_Crawler_Helper::getAllLinks($currentUrl);
+            foreach ($links as $link) {
+                $normalizedLink = SP_Crawler_Helper::normalizeUrl($link);
+                if (!in_array($normalizedLink, $visited) && !in_array($normalizedLink, $toVisit)) {
+                    $toVisit[] = $normalizedLink;
+                }
+            }
+        }
+    }
 
-		// Zatvaranje datoteke
-		fclose($fileHandle);
+    $jsonContent .= PHP_EOL . ']' . PHP_EOL . '}' . PHP_EOL;
 
-		$result = array(
-			'siteUrl' => $$url,
-			'extensions' => $extensions
-		);
+    // Closing file
+    if (!$wp_filesystem->put_contents($jsonFile, $jsonContent, FS_CHMOD_FILE)) {
+        wp_send_json_error("Error writing to JSON file.");
+    }
 
-		$msg = ["success" => true];
-		//$this->jsonResponse($msg, $result);
-		wp_send_json_success($result);
-	}
+    $result = array(
+        'siteUrl' => $url,
+        'extensions' => $extensions
+    );
+
+    wp_send_json_success($result);
+}
+
+	
 
 
 	public function sp_crawler_fetch_img_data() {
