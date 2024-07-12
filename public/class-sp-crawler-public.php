@@ -43,6 +43,15 @@ class SP_Crawler_Public
 	private $version;
 
 	/**
+	 * Load WP_Filesystem
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 * @var      object    $wp_filesystem    WP_Filesystem Object
+	 */
+	private $wp_filesystem;
+
+	/**
 	 * Initialize the class and set its properties.
 	 *
 	 * @since    1.0.0
@@ -51,9 +60,18 @@ class SP_Crawler_Public
 	 */
 	public function __construct($plugin_name, $version)
 	{
-
+		
+		global $wp_filesystem;
 		$this->plugin_name = $plugin_name;
 		$this->version = $version;
+
+		if (!function_exists('WP_Filesystem')) {
+	            require_once ABSPATH . 'wp-admin/includes/file.php';
+	       	 }
+	
+	        WP_Filesystem();
+	        $this->wp_filesystem = $wp_filesystem;
+		
 	}
 
 	/**
