@@ -1,6 +1,11 @@
 <?php
 
+
+//require_once WP_PLUGIN_DIR . '/seo-performance-crawler/includes/class-sp-crawler-helper.php';
+//require_once trailingslashit(plugin_dir_path(__FILE__)) . 'partials/class-sp-crawler-helper.php';
+
 require_once trailingslashit(dirname(dirname(plugin_dir_path(__FILE__)))) . 'includes/class-sp-crawler-helper.php';
+
 
 /**
  * Provide a admin area view for the plugin
@@ -17,6 +22,8 @@ require_once trailingslashit(dirname(dirname(plugin_dir_path(__FILE__)))) . 'inc
 // This file should primarily consist of HTML with a little bit of PHP.
 
 function sp_crawler_images() {
+
+   // var_dump(SP_CRAWLER_DIR.'admin/css/preload.min.css');
 	
 	echo '
 	<!DOCTYPE html>
@@ -29,11 +36,11 @@ function sp_crawler_images() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/preload.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/plugins.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/style.light-blue-500.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/width-boxed.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/jquery.toast.min.css"> 
+    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/preload.min.css">
+    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/plugins.min.css">
+    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/style.light-blue-500.min.css">
+    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/width-boxed.min.css">
+    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/jquery.toast.min.css"> 
 
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
 
@@ -178,6 +185,8 @@ function sp_crawler_images() {
                                         <input type="number" class="form-control" id="maxPages" placeholder="Limit">
                                     </div>
                                 </div>
+
+                                '.wp_nonce_field("sp_crawler_nonce_action", "sp_crawler_nonce_field").'
                           
 
                    <div class="form-group row justify-content-start">
@@ -225,5 +234,3 @@ function sp_crawler_images() {
 
 	';
 }
-
-
