@@ -23,6 +23,7 @@
       let siteUrl =  jQuery("#siteUrl").val();
       let maxPages =  jQuery("#maxPages").val();
       let imgExtensions =  jQuery("#imagesExt").val();
+      let sp_crawler_nonce_field =  jQuery("#sp_crawler_nonce_field").val();
       var params = {};
       
       if (!jQuery.isArray(imgExtensions) || imgExtensions.length === 0) {
@@ -39,6 +40,7 @@
         params.siteUrl = siteUrl;
         params.maxPages = maxPages;
         params.imgExtensions = imgExtensions;
+        params.sp_crawler_nonce_field = sp_crawler_nonce_field;
     
 
         $('#loader').show();
@@ -187,6 +189,7 @@
     let action = jQuery("#crawlMetaAction").val();
     let siteUrl =  jQuery("#siteUrl").val();
     let maxPages =  jQuery("#maxPages").val();
+    let sp_crawler_nonce_field =  jQuery("#sp_crawler_nonce_field").val();
     var params = {};
 
     if (!isValidUrl(siteUrl)) {
@@ -197,6 +200,7 @@
     params.action = 'sp_crawler_fetch_meta';
     params.siteUrl = siteUrl;
     params.maxPages = maxPages;
+    params.sp_crawler_nonce_field = sp_crawler_nonce_field;
 
       $('#loader').show();
 
@@ -312,6 +316,7 @@
     let action = jQuery("#crawlBrokenLinksAction").val();
     let siteUrl =  jQuery("#siteUrl").val();
     let maxPages =  jQuery("#maxPages").val();
+    let sp_crawler_nonce_field =  jQuery("#sp_crawler_nonce_field").val();
     var params = {};
 
     if (!isValidUrl(siteUrl)) {
@@ -322,6 +327,7 @@
     params.action = 'sp_crawler_fetch_broken_urls';
     params.siteUrl = siteUrl;
     params.maxPages = maxPages;
+    params.sp_crawler_nonce_field = sp_crawler_nonce_field;
 
       $('#loader').show();
 
@@ -436,6 +442,7 @@
       let action = jQuery("#startUrlLenghtAction").val();
       let siteUrl =  jQuery("#siteUrl").val();
       let maxPages =  jQuery("#maxPages").val();
+      let sp_crawler_nonce_field =  jQuery("#sp_crawler_nonce_field").val();
       var params = {};
 
       if (!isValidUrl(siteUrl)) {
@@ -446,6 +453,7 @@
       params.action = 'sp_crawler_fetch_url_length';
       params.siteUrl = siteUrl;
       params.maxPages = maxPages;
+      params.sp_crawler_nonce_field = sp_crawler_nonce_field;
   
         $('#loader').show();
   
@@ -558,6 +566,7 @@
       let action = jQuery("#startSpeedAnalyzertAction").val();
       let siteUrl =  jQuery("#siteUrl").val();
       let maxPages =  jQuery("#maxPages").val();
+      let sp_crawler_nonce_field =  jQuery("#sp_crawler_nonce_field").val();
       var params = {};
 
       if (!isValidUrl(siteUrl)) {
@@ -568,6 +577,7 @@
       params.action = 'sp_crawler_fetch_speed_analysis';
       params.siteUrl = siteUrl;
       params.maxPages = maxPages;
+      params.sp_crawler_nonce_field = sp_crawler_nonce_field;
   
         $('#loader').show();
   
@@ -690,6 +700,7 @@
       let action = jQuery("#startHeaderStructureAction").val();
       let siteUrl =  jQuery("#siteUrl").val();
       let maxPages =  jQuery("#maxPages").val();
+      let sp_crawler_nonce_field =  jQuery("#sp_crawler_nonce_field").val();
       var params = {};
 
       if (!isValidUrl(siteUrl)) {
@@ -700,6 +711,7 @@
       params.action = 'sp_crawler_fetch_header_structure';
       params.siteUrl = siteUrl;
       params.maxPages = maxPages;
+      params.sp_crawler_nonce_field = sp_crawler_nonce_field;
   
         $('#loader').show();
   
