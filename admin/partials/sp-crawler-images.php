@@ -173,7 +173,7 @@ function sp_crawler_images() {
                                     </div>
                                 </div>
                                     
-                                '.esc_html(wp_nonce_field("sp_crawler_nonce_action", "sp_crawler_nonce_field", true, false)).'
+                                '.wp_nonce_field("sp_crawler_nonce_action", "sp_crawler_nonce_field", true, false).'
 
                    <div class="form-group row justify-content-start">
                     <div class="col-lg-10">
