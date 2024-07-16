@@ -35,19 +35,6 @@ function sp_crawler_images() {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/preload.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/plugins.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/style.light-blue-500.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/width-boxed.min.css">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'admin/css/jquery.toast.min.css"> 
-
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
-
-      <link href="https://cdn.datatables.net/v/dt/jq-3.7.0/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-colvis-3.0.2/b-html5-3.0.2/b-print-3.0.2/cr-2.0.3/date-1.5.2/fc-5.0.1/fh-4.0.1/kt-2.12.1/r-3.0.2/rg-1.5.0/rr-1.5.0/sc-2.4.3/sb-1.7.1/sp-2.3.1/sl-2.0.3/sr-1.4.1/datatables.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-
 </head>
 
 <body>
@@ -185,9 +172,8 @@ function sp_crawler_images() {
                                         <input type="number" class="form-control" id="maxPages" placeholder="Limit">
                                     </div>
                                 </div>
-
-                                '.wp_nonce_field("sp_crawler_nonce_action", "sp_crawler_nonce_field").'
-                          
+                                    
+                                '.esc_html(wp_nonce_field("sp_crawler_nonce_action", "sp_crawler_nonce_field", true, false)).'
 
                    <div class="form-group row justify-content-start">
                     <div class="col-lg-10">
@@ -215,17 +201,6 @@ function sp_crawler_images() {
 </div> <!-- ms-site-container -->
 
 
- <script src="'.SP_CRAWLER_DIR.'/admin/js/plugins.min.js"></script> 
-
-<script src="'.SP_CRAWLER_DIR.'/admin/js/app.min.js"></script>
-
-<script src="'.SP_CRAWLER_DIR.'/admin/js/configurator.min.js"></script>
-     
-<script src="'.SP_CRAWLER_DIR.'/admin/js/jquery.toast.min.js"></script>
-
- <script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
-
-
 </body>
 
 
@@ -234,3 +209,5 @@ function sp_crawler_images() {
 
 	';
 }
+
+
