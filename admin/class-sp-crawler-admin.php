@@ -65,7 +65,32 @@ class SP_Crawler_Admin {
 	 *
 	 * @since    1.0.0
 	 */
-	public function enqueue_styles() {
+	public function enqueue_styles($hook) {
+
+		$screen = get_current_screen();
+
+		//Load css just for sp-crawler admin pages
+
+
+		if (is_page('sp-crawler-admin-display') ) {
+			wp_enqueue_style('my-plugin-styles', plugin_dir_url(__FILE__) . 'css/my-plugin-style.css', $this->version, 'all');
+		}
+
+		if (preg_match('/sp-crawler/', $screen->id)) {
+			
+			wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/sp-crawler-admin.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-material-icons', plugin_dir_url( __FILE__ ) . 'css/material-icons.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css', array(), '4.7.0', 'all' );
+			wp_enqueue_style( 'sp-crawler-preload', plugin_dir_url( __FILE__ ) . 'css/preload.min.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-plugins', plugin_dir_url( __FILE__ ) . 'css/plugins.min.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-light-blue-500', plugin_dir_url( __FILE__ ) . 'css/style.light-blue-500.min.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-width-boxed', plugin_dir_url( __FILE__ ) . 'css/width-boxed.min.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-jquery-toast', plugin_dir_url( __FILE__ ) . 'css/jquery.toast.min.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-datatables', 'https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css', array(), $this->version, 'all' );
+			wp_enqueue_style( 'sp-crawler-datatables-min-css', 'https://cdn.datatables.net/v/dt/jq-3.7.0/jszip-3.10.1/dt-2.0.8/b-3.0.2/b-colvis-3.0.2/b-html5-3.0.2/b-print-3.0.2/cr-2.0.3/date-1.5.2/fc-5.0.1/fh-4.0.1/kt-2.12.1/r-3.0.2/rg-1.5.0/rr-1.5.0/sc-2.4.3/sb-1.7.1/sp-2.3.1/sl-2.0.3/sr-1.4.1/datatables.min.css', array(), '2.0.8' );
+			
+		}
+		
 
 		/**
 		 * This function is provided for demonstration purposes only.
@@ -79,7 +104,8 @@ class SP_Crawler_Admin {
 		 * class.
 		 */
 
-		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/sp-crawler-admin.css', array(), $this->version, 'all' );
+	
+
 
 	}
 
@@ -90,21 +116,19 @@ class SP_Crawler_Admin {
 	 */
 	public function enqueue_scripts() {
 
-		/**
-		 * This function is provided for demonstration purposes only.
-		 *
-		 * An instance of this class should be passed to the run() function
-		 * defined in Plugin_Name_Loader as all of the hooks are defined
-		 * in that particular class.
-		 *
-		 * The Plugin_Name_Loader will then create the relationship
-		 * between the defined hooks and the functions defined in this
-		 * class.
-		 */
-	//	wp_enqueue_script( 'toast', plugin_dir_url( __FILE__ ) . 'js/jquery.toast.min.js', array( 'jquery' ), $this->version, false );
+		//Load js just for sp-crawler admin pages
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/sp-crawler-admin.js', array( 'jquery' ), $this->version, false );
+		if (preg_match('/sp-crawler/', $screen->id)) {
 
+			wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/sp-crawler-admin.js', array( 'jquery' ), $this->version, false );
+			wp_enqueue_script( 'sp-crawler-pdfmake', 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js', array( 'jquery' ), $this->version, false );
+			wp_enqueue_script( 'sp-crawler-vfs-fonts', 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js', array( 'jquery' ), $this->version, false );
+			wp_enqueue_script( 'sp-crawler-plugins', plugin_dir_url( __FILE__ ) . 'js/plugins.min.js', array( 'jquery' ), $this->version, false );
+			wp_enqueue_script( 'sp-crawler-app-min-js', plugin_dir_url( __FILE__ ) . 'js/app.min.js', array( 'jquery' ), $this->version, false );
+			wp_enqueue_script( 'sp-crawler-configurator', plugin_dir_url( __FILE__ ) . 'js/configurator.min.js', array( 'jquery' ), $this->version, false );
+			wp_enqueue_script( 'sp-crawler-jquery-toast', plugin_dir_url( __FILE__ ) . 'js/jquery.toast.min.js', array( 'jquery' ), $this->version, false );
+			wp_enqueue_script( 'sp-crawler-dataTables', 'https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js', array( 'jquery' ), $this->version, false );
+		}
 	}
 
 
@@ -190,4 +214,5 @@ class SP_Crawler_Admin {
 	}
 
 }
+
 
