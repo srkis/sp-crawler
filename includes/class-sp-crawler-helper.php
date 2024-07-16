@@ -146,8 +146,6 @@ class SP_Crawler_Helper {
             $src = $img->getAttribute('src');
             $alt = $img->getAttribute('alt');
             $imageSize = self::getRemoteFileSize($src);
-
-          
     
             if ($imageSize > 500000) { // Size in bytes (e.g., 500KB)
                 $recommendations[] = [
@@ -207,24 +205,29 @@ class SP_Crawler_Helper {
     }
 
     public static function getRemoteFileSize($url) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HEADER, true);
-        curl_setopt($ch, CURLOPT_NOBODY, true);
-        curl_exec($ch);
-        $size = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
-        curl_close($ch);
+        $response = wp_remote_head($url);
+    
+        if (is_wp_error($response)) {
+            return 0; // Handle error appropriately
+        }
+    
+        $headers = wp_remote_retrieve_headers($response);
+        $size = isset($headers['content-length']) ? (int) $headers['content-length'] : 0;
+    
         return $size;
     }
     
     public static function getRemoteFileLoadTime($url) {
         $startTime = microtime(true);
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_exec($ch);
-        curl_close($ch);
+        $response = wp_remote_get($url);
+        if (is_wp_error($response)) {
+            return 0; // Handle error appropriately
+        }
+        // Get the response time
         $endTime = microtime(true);
-        return round($endTime - $startTime, 2);
+        $loadTime = round($endTime - $startTime, 2);
+    
+        return $loadTime;
     }
 
 
@@ -240,27 +243,33 @@ class SP_Crawler_Helper {
 
 
     public static function fetchUrl($url) {
-
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'SEO-Performance-Crawler/1.0');
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        $result = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        $args = array(
+            'timeout' => 15, // Adjust timeout as needed
+            'user-agent' => 'SEO-Performance-Crawler/1.0',
+            'sslverify' => false, // Adjust SSL verification as needed
+        );
+    
+        $response = wp_remote_get($url, $args);
+    
+        if (is_wp_error($response)) {
+            return false; // Handle error appropriately
+        }
+    
+        $httpCode = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
     
         if ($httpCode !== 200) {
             return false;
         }
     
-        return $result;
+        return $body;
     }
 
 
     public static function normalizeUrl($url) {
 
         //  var_dump($url);die;
-        $parsedUrl = parse_url($url);
+        $parsedUrl = wp_parse_url($url);
     
         // Provjeri postoji li ključ 'path' u $parsedUrl prije pristupa
         if (!isset($parsedUrl['path'])) {
@@ -339,13 +348,13 @@ class SP_Crawler_Helper {
 
 
     public static function resolveUrl($base, $relative) {
-        if (parse_url($relative, PHP_URL_SCHEME) != '') {
+        if (wp_parse_url($relative, PHP_URL_SCHEME) != '') {
             return $relative;
         }
         if ($relative[0] == '#' || $relative[0] == '?') {
             return $base . $relative;
         }
-        extract(parse_url($base));
+        extract(wp_parse_url($base));
         $path = preg_replace('#/[^/]*$#', '', $path);
         if ($relative[0] == '/') {
             $path = '';
@@ -363,11 +372,18 @@ class SP_Crawler_Helper {
         if (!file_exists($jsonFile) || filesize($jsonFile) == 0) {
             return '<h2 class="section-title" id="tables-example">No data available yet. Please start crawling.</h2>';
         }
-    
-        // Učitavanje sadržaja JSON datoteke
-        $jsonContent = file_get_contents($jsonFile);
+
+            // Load the JSON file content
+        global $wp_filesystem;
+
+        if (empty($wp_filesystem)) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            WP_Filesystem();
+        }
+
+        $jsonContent = $wp_filesystem->get_contents($jsonFile);
         if ($jsonContent === false) {
-            return "Error loading JSON file: $jsonFile";
+            wp_send_json_error('Error loading JSON file: ' . $jsonFile);
         }
     
         // Dekodiranje JSON sadržaja u PHP niz
