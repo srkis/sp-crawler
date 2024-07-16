@@ -42,6 +42,7 @@ class SP_Crawler_Public
 	 */
 	private $version;
 
+
 	/**
 	 * Load WP_Filesystem
 	 *
@@ -60,18 +61,17 @@ class SP_Crawler_Public
 	 */
 	public function __construct($plugin_name, $version)
 	{
-		
 		global $wp_filesystem;
+
 		$this->plugin_name = $plugin_name;
 		$this->version = $version;
 
 		if (!function_exists('WP_Filesystem')) {
-	            require_once ABSPATH . 'wp-admin/includes/file.php';
-	       	 }
-	
-	        WP_Filesystem();
-	        $this->wp_filesystem = $wp_filesystem;
-		
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+
+        WP_Filesystem();
+        $this->wp_filesystem = $wp_filesystem;
 	}
 
 	/**
@@ -122,114 +122,117 @@ class SP_Crawler_Public
 
 
 
- public function sp_crawler_fetch_images() {
-    global $wp_filesystem;
+	public function sp_crawler_fetch_images() {
 
-    if (!function_exists('WP_Filesystem')) {
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-    }
+		// Check if the nonce is set
+		if (!isset($_GET['sp_crawler_nonce_field']) || !wp_verify_nonce($_GET['sp_crawler_nonce_field'], 'sp_crawler_nonce_action')) {
+		    wp_send_json_error('Invalid nonce verification.');
+			return;
+		}
+	
+		// Your existing code
+		$url = sanitize_text_field($_GET['siteUrl']);
+        $extensions = sanitize_text_field($_GET['imgExtensions']);
 
-    WP_Filesystem();
+        $extensions = (is_array($extensions) && count($extensions) > 0) ? array_map('trim', $extensions) : ['png', 'jpg', 'jpeg', 'gif'];
 
-    $url = $_GET['siteUrl'];
-    $extensions = $_GET['imgExtensions'];
+        // Pretvorite sve ekstenzije u mala slova i filtrirajte nevažeće ekstenzije
+        $extensions = array_map('strtolower', $extensions);
+        $extensions = array_filter($extensions, function ($ext) {
+            return preg_match('/^[a-z0-9]+$/', $ext);
+        });
 
-    $extensions = (is_array($extensions) && count($extensions) > 0) ? array_map('trim', $extensions) : ['png', 'jpg', 'jpeg', 'gif'];
+        // Izbacite duplikate ako je potrebno
+        $extensions = array_unique($extensions);
 
-    $extensions = array_map('strtolower', $extensions);
-    $extensions = array_filter($extensions, function ($ext) {
-        return preg_match('/^[a-z0-9]+$/', $ext);
-    });
+        $maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 1;
+        $dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
+        $jsonFile = $dataDir . 'images_results.json';
 
-    $extensions = array_unique($extensions);
-
-    $maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 5;
-    $dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-    $jsonFile = $dataDir . 'images_results.json';
-
-    // Proverite da li postoji direktorijum, ako ne kreirajte ga
-    if (!$wp_filesystem->is_dir($dataDir)) {
-        if (!$wp_filesystem->mkdir($dataDir, 0755)) {
-            wp_send_json_error("Error: Unable to create data directory.");
+        // Proverite da li postoji direktorijum, ako ne kreirajte ga
+        if (!$this->wp_filesystem->is_dir($dataDir)) {
+            if (!$this->wp_filesystem->mkdir($dataDir, 0755)) {
+                wp_send_json_error("Error: Unable to create data directory.");
+            }
         }
-    }
 
-    // Proverite da li postoji fajl, ako ne kreirajte ga
-    if (!$wp_filesystem->exists($jsonFile)) {
-        if (!$wp_filesystem->put_contents($jsonFile, '')) {
-            wp_send_json_error("Error: Unable to create JSON file.");
+        // Proverite da li postoji fajl, ako ne kreirajte ga
+        if (!$this->wp_filesystem->exists($jsonFile)) {
+            if (!$this->wp_filesystem->put_contents($jsonFile, '')) {
+                wp_send_json_error("Error: Unable to create JSON file.");
+            }
         }
-    }
 
-    $visited = [];
-    $toVisit = [SP_Crawler_Helper::normalizeUrl($url)];
+        $visited = [];
+        $toVisit = [SP_Crawler_Helper::normalizeUrl($url)];
 
-    $fileHandle = $wp_filesystem->get_contents($jsonFile);
-    if ($fileHandle === false) {
-        wp_send_json_error("Error opening JSON file for writing: $jsonFile");
-    }
+        // Otvaranje JSON datoteke za pisanje
+        $fileHandle = $this->wp_filesystem->get_contents($jsonFile);
+        if ($fileHandle === false) {
+            wp_send_json_error("Error opening JSON file for writing: $jsonFile");
+        }
 
-    // Početak JSON-a
-    $jsonContent = '{ "pages": [' . PHP_EOL;
+        // Početak JSON-a
+        $jsonContent = '{ "pages": [' . PHP_EOL;
 
-    $firstPage = true;
+        $firstPage = true;
 
-    while ($toVisit && count($visited) < $maxPages) {
-        $batch = array_splice($toVisit, 0, 10); // Process 10 URLs at a time
+        while ($toVisit && count($visited) < $maxPages) {
+            $batch = array_splice($toVisit, 0, 10); // Process 10 URLs at a time
 
-        foreach ($batch as $currentUrl) {
-            if (in_array($currentUrl, $visited) || count($visited) >= $maxPages) {
-                continue;
+            foreach ($batch as $currentUrl) {
+                if (in_array($currentUrl, $visited) || count($visited) >= $maxPages) {
+                    continue;
+                }
+
+                $visited[] = $currentUrl;
+                $images = SP_Crawler_Helper::getImagesFromPage($currentUrl, $extensions);
+
+                // Formatiranje podataka u JSON format
+                $pageData = [
+                    'page_title' => SP_Crawler_Helper::getPageTitle($currentUrl), // Funkcija za dobivanje naslova stranice
+                    'page_url' => $currentUrl,
+                    'image_urls' => $images
+                ];
+
+                // Dodavanje zarezova između objekata, osim za prvi objekt
+                if (!$firstPage) {
+                    $jsonContent .= ',' . PHP_EOL;
+                } else {
+                    $firstPage = false;
+                }
+
+                // Upisivanje podataka u JSON datoteku
+                $jsonContent .= wp_json_encode($pageData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
             }
 
-            $visited[] = $currentUrl;
-            $images = SP_Crawler_Helper::getImagesFromPage($currentUrl, $extensions);
-
-            // Formatiranje podataka u JSON format
-            $pageData = [
-                'page_title' => SP_Crawler_Helper::getPageTitle($currentUrl), // Get Page title Function
-                'page_url' => $currentUrl,
-                'image_urls' => $images
-            ];
-
-            // adding commas between objects, except for first one
-            if (!$firstPage) {
-                $jsonContent .= ',' . PHP_EOL;
-            } else {
-                $firstPage = false;
-            }
-
-            // Upisivanje podataka u JSON datoteku
-            $jsonContent .= wp_json_encode($pageData, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-        }
-
-        foreach ($batch as $currentUrl) {
-            // Prikupljanje svih linkova sa stranice koje treba posetiti
-            $links = SP_Crawler_Helper::getAllLinks($currentUrl);
-            foreach ($links as $link) {
-                $normalizedLink = SP_Crawler_Helper::normalizeUrl($link);
-                if (!in_array($normalizedLink, $visited) && !in_array($normalizedLink, $toVisit)) {
-                    $toVisit[] = $normalizedLink;
+            foreach ($batch as $currentUrl) {
+                // Prikupljanje svih linkova sa stranice koje treba posetiti
+                $links = SP_Crawler_Helper::getAllLinks($currentUrl);
+                foreach ($links as $link) {
+                    $normalizedLink = SP_Crawler_Helper::normalizeUrl($link);
+                    if (!in_array($normalizedLink, $visited) && !in_array($normalizedLink, $toVisit)) {
+                        $toVisit[] = $normalizedLink;
+                    }
                 }
             }
         }
+
+        // Završetak JSON formata
+        $jsonContent .= PHP_EOL . ']' . PHP_EOL . '}' . PHP_EOL;
+
+        // Zatvaranje datoteke
+        if (!$this->wp_filesystem->put_contents($jsonFile, $jsonContent, FS_CHMOD_FILE)) {
+            wp_send_json_error("Error writing to JSON file.");
+        }
+
+        $result = array(
+            'siteUrl' => $url,
+            'extensions' => $extensions
+        );
+
+        wp_send_json_success($result);
     }
-
-    $jsonContent .= PHP_EOL . ']' . PHP_EOL . '}' . PHP_EOL;
-
-    // Closing file
-    if (!$wp_filesystem->put_contents($jsonFile, $jsonContent, FS_CHMOD_FILE)) {
-        wp_send_json_error("Error writing to JSON file.");
-    }
-
-    $result = array(
-        'siteUrl' => $url,
-        'extensions' => $extensions
-    );
-
-    wp_send_json_success($result);
-}
-
 	
 
 
@@ -241,11 +244,16 @@ class SP_Crawler_Public
 			wp_send_json_error('No data available yet. Please start crawling.');
 		}
 
-		// Učitavanje sadržaja JSON datoteke
-		$jsonContent = file_get_contents($jsonFile);
-		if ($jsonContent === false) {
-			wp_send_json_error('Error loading JSON file: ' . $jsonFile);
-		}
+		// // Učitavanje sadržaja JSON datoteke
+		// $jsonContent = file_get_contents($jsonFile);
+		// if ($jsonContent === false) {
+		// 	wp_send_json_error('Error loading JSON file: ' . $jsonFile);
+		// }
+
+		$jsonContent = $this->wp_filesystem->get_contents($jsonFile);
+			if ($jsonContent === false) {
+				wp_send_json_error('Error loading JSON file: ' . $jsonFile);
+			}
 
 		// Dekodiranje JSON sadržaja u PHP niz
 		$data = json_decode($jsonContent, true);
@@ -262,60 +270,81 @@ class SP_Crawler_Public
 	}
 
 
-	public	function sp_crawler_fetch_meta() {
+	public function sp_crawler_fetch_meta() {
 
-		$siteUrl = $_GET['siteUrl'];
-		$maxPages = $_GET['maxPages'];
-
+		// Check if the nonce is set
+		if (!isset($_GET['sp_crawler_nonce_field']) || !wp_verify_nonce($_GET['sp_crawler_nonce_field'], 'sp_crawler_nonce_action')) {
+		    wp_send_json_error('Invalid nonce verification.');
+			return;
+		}
+	
+		// Your existing code
+		$siteUrl = sanitize_text_field($_GET['siteUrl']);
+		$maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 1;
+	
 		$pages = [];
 	
-
 		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
 		$jsonFile = $dataDir . 'results_meta.json';
-
-		$fileHandle = fopen($jsonFile, 'w');
-			if ($fileHandle === false) {
-				wp_send_json_error("Error opening JSON file for writing: $jsonFile");
+	
+		// Proverite da li postoji direktorijum, ako ne kreirajte ga
+		if (!$this->wp_filesystem->is_dir($dataDir)) {
+			if (!$this->wp_filesystem->mkdir($dataDir, 0755)) {
+				wp_send_json_error("Error: Unable to create data directory.");
 			}
-
+		}
+	
+		// Proverite da li postoji fajl, ako ne kreirajte ga
+		if (!$this->wp_filesystem->exists($jsonFile)) {
+			if (!$this->wp_filesystem->put_contents($jsonFile, '')) {
+				wp_send_json_error("Error: Unable to create JSON file.");
+			}
+		}
+	
+		// Otvaranje JSON datoteke za pisanje
+		$fileHandle = $this->wp_filesystem->get_contents($jsonFile);
+		if ($fileHandle === false) {
+			wp_send_json_error("Error opening JSON file for writing: $jsonFile");
+		}
+	
 		// Normalize site URL
 		$siteUrl = rtrim($siteUrl, '/') . '/';
 		$visitedUrls = [];
 		$urlsToVisit = [$siteUrl];
-
+	
 		while (count($visitedUrls) < $maxPages && !empty($urlsToVisit)) {
 			$url = array_shift($urlsToVisit);
-
+	
 			if (in_array($url, $visitedUrls)) {
 				continue;
 			}
-
+	
 			$html = SP_Crawler_Helper::fetchUrl($url);
-
+	
 			if ($html === false) {
 				continue;
 			}
-
+	
 			$doc = new DOMDocument();
 			libxml_use_internal_errors(true); // Suppress errors for invalid HTML
-
+	
 			// Load HTML content into DOMDocument
 			$doc->loadHTML($html);
 			libxml_clear_errors();
-
+	
 			$pageTitle = '';
 			$metaDescription = '';
 			$metaKeywords = '';
 			$h1Tags = [];
 			$imagesWithoutAlt = [];
 			$canonicalUrl = '';
-
+	
 			// Get page title
 			$titleTags = $doc->getElementsByTagName('title');
 			if ($titleTags->length > 0) {
 				$pageTitle = $titleTags->item(0)->nodeValue;
 			}
-
+	
 			// Get meta description and keywords
 			$metaTags = $doc->getElementsByTagName('meta');
 			foreach ($metaTags as $tag) {
@@ -326,13 +355,13 @@ class SP_Crawler_Public
 					$metaKeywords = $tag->getAttribute('content');
 				}
 			}
-
+	
 			// Get H1 tags
 			$h1TagsElements = $doc->getElementsByTagName('h1');
 			foreach ($h1TagsElements as $h1) {
 				$h1Tags[] = $h1->nodeValue;
 			}
-
+	
 			// Check for images without ALT attribute
 			$imageTags = $doc->getElementsByTagName('img');
 			foreach ($imageTags as $img) {
@@ -340,7 +369,7 @@ class SP_Crawler_Public
 					$imagesWithoutAlt[] = $img->getAttribute('src');
 				}
 			}
-
+	
 			// Check for canonical URL
 			$linkTags = $doc->getElementsByTagName('link');
 			foreach ($linkTags as $link) {
@@ -349,14 +378,14 @@ class SP_Crawler_Public
 					break;
 				}
 			}
-
+	
 			// Validate lengths
 			$titleValidation = SP_Crawler_Helper::validateLength($pageTitle, 50, 60);
 			$descriptionValidation = SP_Crawler_Helper::validateLength($metaDescription, 50, 160);
 			$keywordsValidation = SP_Crawler_Helper::validateLength($metaKeywords, 0, 255); // Keywords are less strict
 			$h1Count = count($h1Tags);
 			$h1Validation = $h1Count === 1;
-
+	
 			$meta = [
 				"Title" => [
 					"content" => $pageTitle,
@@ -393,19 +422,19 @@ class SP_Crawler_Public
 					"reason" => !empty($canonicalUrl) ? '' : 'Missing canonical URL'
 				]
 			];
-
+	
 			// Remove slashes from URL
 			$cleanedUrl = stripslashes($url);
-
+	
 			$pageData = [
 				"page_title" => $pageTitle,
 				"page_url" => $cleanedUrl,
 				"meta" => $meta
 			];
-
+	
 			$pages[] = $pageData;
 			$visitedUrls[] = $url;
-
+	
 			// Find and queue new URLs to visit
 			$links = $doc->getElementsByTagName('a');
 			foreach ($links as $link) {
@@ -415,44 +444,49 @@ class SP_Crawler_Public
 				}
 			}
 		}
-
+	
 		// Prepare report structure
 		$report = [
 			"pages" => $pages
 		];
-
+	
 		// Ensure the data directory exists
-		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-		if (!is_dir($dataDir)) {
-			mkdir($dataDir, 0755, true);
+		if (!$this->wp_filesystem->is_dir($dataDir)) {
+			if (!$this->wp_filesystem->mkdir($dataDir, 0755)) {
+				wp_send_json_error("Error: Unable to create data directory.");
+			}
 		}
-
+	
 		// Save report to JSON file
-		$jsonFile = $dataDir . 'results_meta.json';
-		$jsonReport = json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-		file_put_contents($jsonFile, $jsonReport);
-
+		$jsonReport = wp_json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+		if (!$this->wp_filesystem->put_contents($jsonFile, $jsonReport, FS_CHMOD_FILE)) {
+			wp_send_json_error("Error writing to JSON file.");
+		}
+	
 		wp_send_json_success($report);
 	}
 
 
 	// Fetch Meta Report Function
 	public function sp_crawler_fetch_meta_data() {
+	
 		$jsonFile = plugin_dir_path(dirname(__FILE__)) . 'data/results_meta.json';
 
 		if (!file_exists($jsonFile) || filesize($jsonFile) == 0) {
 			wp_send_json_error('No data available yet. Please start crawling.');
 		}
 
-		$jsonContent = file_get_contents($jsonFile);
-		if ($jsonContent === false) {
-			return json_encode(['error' => "Error loading JSON file: $jsonFile"]);
-		}
+		$jsonContent = $this->wp_filesystem->get_contents($jsonFile);
+			if ($jsonContent === false) {
+				wp_send_json_error('Error loading JSON file: ' . $jsonFile);
+			}
 
 		$data = json_decode($jsonContent, true);
-		if ($data === null) {
-			return json_encode(['error' => "Error decoding JSON file: " . json_last_error_msg()]);
-		}
+
+		if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+				wp_send_json_error('Error decoding JSON file: ' . json_last_error_msg());
+				//return wp_json_encode(['error' => "Error decoding JSON file: " . json_last_error_msg()]);
+			}
 
 		wp_send_json_success($data);
 
@@ -460,19 +494,41 @@ class SP_Crawler_Public
 	}
 
 
+
 	public function sp_crawler_fetch_broken_urls() {
 
-		$siteUrl = $_GET['siteUrl'];
-		$maxPages = $_GET['maxPages'];
+		// Check if the nonce is set
+		if (!isset($_GET['sp_crawler_nonce_field']) || !wp_verify_nonce($_GET['sp_crawler_nonce_field'], 'sp_crawler_nonce_action')) {
+			wp_send_json_error('Invalid nonce verification.');
+			return;
+		}
+			
+		$siteUrl = sanitize_text_field($_GET['siteUrl']);
+		$maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 1;
 
 		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
 		$jsonFile = $dataDir . 'broken_links.json';
-
-		$fileHandle = fopen($jsonFile, 'w');
+	
+		// Proverite da li postoji direktorijum, ako ne kreirajte ga
+		if (!$this->wp_filesystem->is_dir($dataDir)) {
+			if (!$this->wp_filesystem->mkdir($dataDir, 0755)) {
+				wp_send_json_error("Error: Unable to create data directory.");
+			}
+		}
+	
+		// Proverite da li postoji fajl, ako ne kreirajte ga
+		if (!$this->wp_filesystem->exists($jsonFile)) {
+			if (!$this->wp_filesystem->put_contents($jsonFile, '')) {
+				wp_send_json_error("Error: Unable to create JSON file.");
+			}
+		}
+	
+		// Otvaranje JSON datoteke za pisanje
+		$fileHandle = $this->wp_filesystem->get_contents($jsonFile);
 		if ($fileHandle === false) {
 			wp_send_json_error("Error opening JSON file for writing: $jsonFile");
 		}
-
+	
 		$brokenLinks = [];
 		$visitedUrls = [];
 		$urlsToVisit = [rtrim($siteUrl, '/') . '/'];
@@ -543,23 +599,18 @@ class SP_Crawler_Public
 		}
 	
 		$fullReport = [
-		//	"broken_links" => $brokenLinks,
+			// "broken_links" => $brokenLinks,
 			"page_reports" => $pageReports
 		];
 	
-		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-		if (!is_dir($dataDir)) {
-			mkdir($dataDir, 0755, true);
+		// Save report to JSON file
+		$jsonReport = wp_json_encode($fullReport, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+		if (!$this->wp_filesystem->put_contents($jsonFile, $jsonReport, FS_CHMOD_FILE)) {
+			wp_send_json_error("Error writing to JSON file.");
 		}
 	
-		$jsonFile = $dataDir . 'broken_links.json';
-		$jsonReport = json_encode($fullReport, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-		file_put_contents($jsonFile, $jsonReport);
-	
 		wp_send_json_success($fullReport);
-		//echo "JSON report has been created successfully.";
 	}
-
 
 
 	// Function to get broken_links.json file
@@ -572,11 +623,11 @@ class SP_Crawler_Public
 			//return json_encode(['error' => 'No data available yet. Please start crawling.']);
 		}
 
-		$jsonContent = file_get_contents($jsonFile);
-		if ($jsonContent === false) {
-			wp_send_json_error("Error loading JSON file: $jsonFile");
-			//return json_encode(['error' => "Error loading JSON file: $jsonFile"]);
-		}
+
+		$jsonContent = $this->wp_filesystem->get_contents($jsonFile);
+			if ($jsonContent === false) {
+				wp_send_json_error('Error loading JSON file: ' . $jsonFile);
+			}
 
 		$data = json_decode($jsonContent, true);
 		if ($data === null) {
@@ -588,111 +639,115 @@ class SP_Crawler_Public
 }
 	
 
+public function sp_crawler_fetch_url_length() {
 
-    public function sp_crawler_fetch_url_length() {
-
-		$siteUrl = $_GET['siteUrl'];
-		$maxPages = $_GET['maxPages'];
-
-		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-		$jsonFile = $dataDir . 'url_length.json';
-
-		$fileHandle = fopen($jsonFile, 'w');
-		if ($fileHandle === false) {
-			wp_send_json_error("Error opening JSON file for writing: $jsonFile");
-		}
-
-		// Normalize site URL
-		$siteUrl = rtrim($siteUrl, '/') . '/';
-		$visitedUrls = [];
-		$urlsToVisit = [$siteUrl];
-		$pages = [];
-	
-		while (count($visitedUrls) < $maxPages && !empty($urlsToVisit)) {
-			$url = array_shift($urlsToVisit);
-	
-			if (in_array($url, $visitedUrls)) {
-				continue;
-			}
-
-			$html = SP_Crawler_Helper::fetchUrl($url);
+	// Check if the nonce is set
+	if (!isset($_GET['sp_crawler_nonce_field']) || !wp_verify_nonce($_GET['sp_crawler_nonce_field'], 'sp_crawler_nonce_action')) {
+		wp_send_json_error('Invalid nonce verification.');
+		return;
+	}
 			
-			if ($html === false) {
-				continue;
-			}
-	
-			$doc = new DOMDocument();
-			libxml_use_internal_errors(true); // Suppress errors for invalid HTML
-	
-			// Load HTML content into DOMDocument
-			$doc->loadHTML($html);
-			libxml_clear_errors();
-	
-			$pageTitle = '';
-			$titleTags = $doc->getElementsByTagName('title');
-			if ($titleTags->length > 0) {
-				$pageTitle = $titleTags->item(0)->nodeValue;
-			}
-	
-			$urlLength = strlen($url);
-			$urlRecommendation = '';
-			$urlValid = true;
-	
-			if ($urlLength < 50) {
-				$urlValid = false;
-				$urlRecommendation = 'URL is too short. Ideally, URLs should be between 50-60 characters long.';
-			} elseif ($urlLength > 60) {
-				$urlValid = false;
-				$urlRecommendation = 'URL is too long. Ideally, URLs should be between 50-60 characters long.';
-			} else {
-				$urlRecommendation = 'URL length is optimal.';
-			}
-	
-			$pageData = [
-				'page_title' => $pageTitle,
-				'page_url' => stripslashes($url),
-				'url_length' => $urlLength,
-				'valid' => $urlValid,
-				'recommendation' => $urlRecommendation
-			];
-	
-			$pages[] = $pageData;
-			$visitedUrls[] = $url;
-		
-			// Find and queue new URLs to visit
-			$links = $doc->getElementsByTagName('a');
-			foreach ($links as $link) {
-				$href = $link->getAttribute('href');
-				if (strpos($href, $siteUrl) !== false && !in_array($href, $visitedUrls) && !in_array($href, $urlsToVisit)) {
-					$urlsToVisit[] = $href;
-				}
-			}
-		}
+	$siteUrl = sanitize_text_field($_GET['siteUrl']);
+	$maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 1;
 
-		
-		// Prepare report structure
-		$report = [
-			'pages' => $pages
-		];
-	
-		// Ensure the data directory exists
-		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-		if (!is_dir($dataDir)) {
-			if (!mkdir($dataDir, 0755, true)) {
-				return 'Error: Cannot create data directory.';
-			}
-		}
+    $dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
+    $jsonFile = $dataDir . 'url_length.json';
 
-		// Save report to JSON file
-		$jsonFile = $dataDir . 'url_length.json';
-		$jsonReport = json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-		if (file_put_contents($jsonFile, $jsonReport) === false) {
-			return 'Error: Cannot write to JSON file.';
-		}
-
-		wp_send_json_success($report);
-	
+    // Proverite da li postoji direktorijum, ako ne kreirajte ga
+    if (!$this->wp_filesystem->is_dir($dataDir)) {
+        if (!$this->wp_filesystem->mkdir($dataDir, 0755)) {
+            wp_send_json_error("Error: Unable to create data directory.");
+        }
     }
+
+    // Proverite da li postoji fajl, ako ne kreirajte ga
+    if (!$this->wp_filesystem->exists($jsonFile)) {
+        if (!$this->wp_filesystem->put_contents($jsonFile, '')) {
+            wp_send_json_error("Error: Unable to create JSON file.");
+        }
+    }
+
+    // Normalize site URL
+    $siteUrl = rtrim($siteUrl, '/') . '/';
+    $visitedUrls = [];
+    $urlsToVisit = [$siteUrl];
+    $pages = [];
+
+    while (count($visitedUrls) < $maxPages && !empty($urlsToVisit)) {
+        $url = array_shift($urlsToVisit);
+
+        if (in_array($url, $visitedUrls)) {
+            continue;
+        }
+
+        $html = SP_Crawler_Helper::fetchUrl($url);
+
+        if ($html === false) {
+            continue;
+        }
+
+        $doc = new DOMDocument();
+        libxml_use_internal_errors(true); // Suppress errors for invalid HTML
+
+        // Load HTML content into DOMDocument
+        $doc->loadHTML($html);
+        libxml_clear_errors();
+
+        $pageTitle = '';
+        $titleTags = $doc->getElementsByTagName('title');
+        if ($titleTags->length > 0) {
+            $pageTitle = $titleTags->item(0)->nodeValue;
+        }
+
+        $urlLength = strlen($url);
+        $urlRecommendation = '';
+        $urlValid = true;
+
+        if ($urlLength < 50) {
+            $urlValid = false;
+            $urlRecommendation = 'URL is too short. Ideally, URLs should be between 50-60 characters long.';
+        } elseif ($urlLength > 60) {
+            $urlValid = false;
+            $urlRecommendation = 'URL is too long. Ideally, URLs should be between 50-60 characters long.';
+        } else {
+            $urlRecommendation = 'URL length is optimal.';
+        }
+
+        $pageData = [
+            'page_title' => $pageTitle,
+            'page_url' => stripslashes($url),
+            'url_length' => $urlLength,
+            'valid' => $urlValid,
+            'recommendation' => $urlRecommendation
+        ];
+
+        $pages[] = $pageData;
+        $visitedUrls[] = $url;
+
+        // Find and queue new URLs to visit
+        $links = $doc->getElementsByTagName('a');
+        foreach ($links as $link) {
+            $href = $link->getAttribute('href');
+            if (strpos($href, $siteUrl) !== false && !in_array($href, $visitedUrls) && !in_array($href, $urlsToVisit)) {
+                $urlsToVisit[] = $href;
+            }
+        }
+    }
+
+    // Prepare report structure
+    $report = [
+        'pages' => $pages
+    ];
+
+  	// Save report to JSON file
+	$jsonReport = wp_json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+    if (!$this->wp_filesystem->put_contents($jsonFile, $jsonReport, FS_CHMOD_FILE)) {
+        wp_send_json_error("Error writing to JSON file.");
+    }
+
+    wp_send_json_success($report);
+}
 
 
 		// Function to get broken_links.json file
@@ -704,9 +759,9 @@ class SP_Crawler_Public
 				wp_send_json_error("No data available yet. Please start crawling.");
 			}
 	
-			$jsonContent = file_get_contents($jsonFile);
+			$jsonContent = $this->wp_filesystem->get_contents($jsonFile);
 			if ($jsonContent === false) {
-				wp_send_json_error("Error loading JSON file: $jsonFile");
+				wp_send_json_error('Error loading JSON file: ' . $jsonFile);
 			}
 	
 			$data = json_decode($jsonContent, true);
@@ -721,25 +776,39 @@ class SP_Crawler_Public
 
 	/** Page Speed Analyzer */
 
-	function sp_crawler_fetch_speed_analysis() {
+	public function sp_crawler_fetch_speed_analysis() {
 
-		$siteUrl = $_GET['siteUrl'];
-		$maxPages = $_GET['maxPages'];
+	// Check if the nonce is set
+	if (!isset($_GET['sp_crawler_nonce_field']) || !wp_verify_nonce($_GET['sp_crawler_nonce_field'], 'sp_crawler_nonce_action')) {
+		wp_send_json_error('Invalid nonce verification.');
+		return;
+	}
+			
+		$siteUrl = sanitize_text_field($_GET['siteUrl']);
+		$maxPages = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 1;
+
 		// Normalize site URL
-		
 		$siteUrl = rtrim($siteUrl, '/') . '/';
 		$visitedUrls = [];
 		$urlsToVisit = [$siteUrl];
 		$pageReports = [];
-
-
+	
 		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
 		$jsonFile = $dataDir . 'speed_analyze.json';
-
-		$fileHandle = fopen($jsonFile, 'w');
-		if ($fileHandle === false) {
-			wp_send_json_error("Error opening JSON file for writing: $jsonFile");
-		}	
+	
+		// Proverite da li postoji direktorijum, ako ne kreirajte ga
+		if (!$this->wp_filesystem->is_dir($dataDir)) {
+			if (!$this->wp_filesystem->mkdir($dataDir, 0755)) {
+				wp_send_json_error("Error: Unable to create data directory.");
+			}
+		}
+	
+		// Proverite da li postoji fajl, ako ne kreirajte ga
+		if (!$this->wp_filesystem->exists($jsonFile)) {
+			if (!$this->wp_filesystem->put_contents($jsonFile, '')) {
+				wp_send_json_error("Error: Unable to create JSON file.");
+			}
+		}
 	
 		while (count($visitedUrls) < $maxPages && !empty($urlsToVisit)) {
 			$url = array_shift($urlsToVisit);
@@ -747,24 +816,24 @@ class SP_Crawler_Public
 			if (in_array($url, $visitedUrls)) {
 				continue;
 			}
-			
+	
 			$startTime = microtime(true);
 			$html = SP_Crawler_Helper::fetchUrl($url);
 			$endTime = microtime(true);
-			
+	
 			$loadTime = round($endTime - $startTime, 2); // Format load time to two decimal places
 	
 			if ($html === false) {
 				continue;
 			}
-
+	
 			$pageTitle = SP_Crawler_Helper::getSpeedPageTitle($html);
-			
+	
 			$recommendations = array_merge(
 				SP_Crawler_Helper::getImageRecommendations($html),
 				SP_Crawler_Helper::getScriptAndCssRecommendations($html)
 			);
-
+	
 			$pageReports[] = [
 				"page_title" => $pageTitle,
 				"page_url" => stripslashes($url),
@@ -773,7 +842,7 @@ class SP_Crawler_Public
 			];
 	
 			$visitedUrls[] = $url;
-
+	
 			$newUrls = SP_Crawler_Helper::getLinksFromHtml($html, $siteUrl);
 			foreach ($newUrls as $newUrl) {
 				if (!in_array($newUrl, $visitedUrls) && !in_array($newUrl, $urlsToVisit)) {
@@ -787,24 +856,15 @@ class SP_Crawler_Public
 			"page_reports" => $pageReports
 		];
 	
-		// Ensure the data directory exists
-		$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-		if (!is_dir($dataDir)) {
-			if (!mkdir($dataDir, 0755, true)) {
-				return "Error: Unable to create data directory.";
-			}
-		}
-	
 		// Save report to JSON file
-		$jsonFile = $dataDir . 'speed_analyze.json';
-		$jsonReport = json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-		if (!is_writable($dataDir) || file_put_contents($jsonFile, $jsonReport) === false) {
-			return "Error: Unable to write to data directory.";
+		$jsonReport = wp_json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+		if (!$this->wp_filesystem->put_contents($jsonFile, $jsonReport, FS_CHMOD_FILE)) {
+			wp_send_json_error("Error writing to JSON file.");
 		}
 	
 		wp_send_json_success($report);
 	}
-	
 
 
 			// Function to get broken_links.json file
@@ -816,9 +876,9 @@ class SP_Crawler_Public
 					wp_send_json_error("No data available yet. Please start crawling.");
 				}
 		
-				$jsonContent = file_get_contents($jsonFile);
+				$jsonContent = $this->wp_filesystem->get_contents($jsonFile);
 				if ($jsonContent === false) {
-					wp_send_json_error("Error loading JSON file: $jsonFile");
+					wp_send_json_error('Error loading JSON file: ' . $jsonFile);
 				}
 		
 				$data = json_decode($jsonContent, true);
@@ -831,21 +891,36 @@ class SP_Crawler_Public
 
 
 		public function sp_crawler_fetch_header_structure() {
-			$url = $_GET['siteUrl'];
-			$limit = (int) $_GET['maxPages'];
-		
+
+					// Check if the nonce is set
+			if (!isset($_GET['sp_crawler_nonce_field']) || !wp_verify_nonce($_GET['sp_crawler_nonce_field'], 'sp_crawler_nonce_action')) {
+				wp_send_json_error('Invalid nonce verification.');
+				return;
+			}
+			
+			$url = sanitize_text_field($_GET['siteUrl']);
+			$limit = isset($_GET['maxPages']) ? (int)$_GET['maxPages'] : 1;
+
 			$crawledPages = 0;
 			$results = [];
 			$toCrawl = [$url];
 			$crawled = [];
-
-
+		
 			$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
 			$jsonFile = $dataDir . 'header_structure.json';
-
-			$fileHandle = fopen($jsonFile, 'w');
-			if ($fileHandle === false) {
-				wp_send_json_error("Error opening JSON file for writing: $jsonFile");
+		
+			// Proverite da li postoji direktorijum, ako ne kreirajte ga
+			if (!$this->wp_filesystem->is_dir($dataDir)) {
+				if (!$this->wp_filesystem->mkdir($dataDir, 0755)) {
+					wp_send_json_error("Error: Unable to create data directory.");
+				}
+			}
+		
+			// Proverite da li postoji fajl, ako ne kreirajte ga
+			if (!$this->wp_filesystem->exists($jsonFile)) {
+				if (!$this->wp_filesystem->put_contents($jsonFile, '')) {
+					wp_send_json_error("Error: Unable to create JSON file.");
+				}
 			}
 		
 			while (!empty($toCrawl) && $crawledPages < $limit) {
@@ -951,19 +1026,10 @@ class SP_Crawler_Public
 				}
 			}
 		
-			// Ensure the data directory exists
-			$dataDir = plugin_dir_path(dirname(__FILE__)) . 'data/';
-			if (!is_dir($dataDir)) {
-				if (!mkdir($dataDir, 0755, true)) {
-					return "Error: Unable to create data directory.";
-				}
-			}
-		
 			// Save report to JSON file
-			$jsonFile = $dataDir . 'header_structure.json';
-			$jsonReport = json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-			if (!is_writable($dataDir) || file_put_contents($jsonFile, $jsonReport) === false) {
-				return "Error: Unable to write to data directory.";
+			$jsonReport = wp_json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+			if (!$this->wp_filesystem->put_contents($jsonFile, $jsonReport, FS_CHMOD_FILE)) {
+				wp_send_json_error("Error writing to JSON file.");
 			}
 		
 			wp_send_json_success($results);
@@ -978,10 +1044,10 @@ class SP_Crawler_Public
 				wp_send_json_error("No data available yet. Please start crawling.");
 			}
 	
-			$jsonContent = file_get_contents($jsonFile);
-			if ($jsonContent === false) {
-				wp_send_json_error("Error loading JSON file: $jsonFile");
-			}
+			$jsonContent = $this->wp_filesystem->get_contents($jsonFile);
+				if ($jsonContent === false) {
+					wp_send_json_error('Error loading JSON file: ' . $jsonFile);
+				}
 	
 			$data = json_decode($jsonContent, true);
 			if ($data === null) {
@@ -998,7 +1064,8 @@ class SP_Crawler_Public
 
 	private function jsonResponse($msg, $result)
 	{
-		echo json_encode(array($msg, 'result' => $result));
+
+		echo wp_json_encode([$msg, 'result' => $result]);
 		die;
 	}
 }
