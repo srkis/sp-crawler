@@ -27,17 +27,6 @@ function sp_crawler_page() {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
- <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/material-icons.css">
-
-     <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/preload.min.css">
-       <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/plugins.min.css">
-
-     <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/style.light-blue-500.min.css">
-
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/width-boxed.min.css" id="ms-boxed" disabled="">
-    <link rel="stylesheet" href="'.SP_CRAWLER_DIR.'/admin/css/jquery.toast.min.css">
-
 </head>
 
 <body>
@@ -208,14 +197,6 @@ function sp_crawler_page() {
 
 </div> <!-- ms-site-container -->
 
- <script src="'.SP_CRAWLER_DIR.'/admin/js/plugins.min.js"></script> 
-
-<script src="'.SP_CRAWLER_DIR.'/admin/js/app.min.js"></script>
-
-<script src="'.SP_CRAWLER_DIR.'/admin/js/configurator.min.js"></script>
-     
-<script src="'.SP_CRAWLER_DIR.'/admin/js/jquery.toast.min.js"></script>
-
 
 </body>
 
@@ -225,4 +206,5 @@ function sp_crawler_page() {
 
 	';
 }
+
 
